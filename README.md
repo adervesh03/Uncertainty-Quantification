@@ -1,8 +1,7 @@
 # Uncertainty-Quantification
 Automatic vs Bootstrapped Uncertainty Quantification
 
-Our Project will be titled: Automatic versus Bootstrapped Uncertainty Quantification.
-That is, we plan to compare SoftBART (A newer version of Bayesian Additive Regression
+We plan to compare SoftBART (A newer version of Bayesian Additive Regression
 Trees) with xgBoost and random forests for prediction uncertainty quantification. SoftBART
 automatically gives automatic uncertainty quantification due to its Bayesian formalism, while for
 xgBoost and random forests, we will need to bootstrap them. After initial simulations, we
