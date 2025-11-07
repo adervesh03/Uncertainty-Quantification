@@ -9,6 +9,7 @@ xgBoost and random forests, we will need to bootstrap them. After initial simula
 hypothesize that SoftBART will have better coverage, particularly for more complicated
 data-generating processes, at the expense of greater computational complexity compared to the
 other two models.
+
 To evaluate this hypothesis, we plan to perform multiple simulation studies, first, on a
 simple model where covariates will enter the model linearly. Second, we plan to extend this to
 the case where covariates enter the model nonlinearly with higher-order interactions. Finally, we
