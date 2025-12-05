@@ -85,7 +85,7 @@ split_conformal <- function(calib_Y,
 # Bootstrap size B 
 # returns: matrices containing uncertainty for each of our three models.
 # note: first column in data frame data is y
-model_fits <- function(data, train_idx, test_idx, calib_idx, B, verbose = TRUE) {
+model_fits <- function(data, train_idx, test_idx, calib_idx, B, verbose = FALSE) {
   # we will use B = 2000, and 
   n <- nrow(data)
   y <- data$y
@@ -420,342 +420,367 @@ compute_simulation <- function(n, J, B, version, train_frac = 0.8, calib_frac = 
 ##***************************************************************************************#######
 ################################################################################################
 
-J <- 2
 
-# initialize "vector of lists"
-sim_results_linear <- vector("list", J)
-sim_results_nonlinear <- vector("list", J)
+run_study <- function(n, B = 1000, J = 50) {
+  # initialize "vector of lists"
+  sim_results_linear <- vector("list", J)
+  sim_results_nonlinear <- vector("list", J)
+  
+  for (j in seq_len(J)) {
+    cat("Running replication", j, "of", J, "\n")
+    
+    sim_results_linear[[j]] <- compute_simulation(
+      n = n, J =j, B = B, version = "linear"
+    )
+    
+    sim_results_nonlinear[[j]] <- compute_simulation(
+      n = n, J = j, B = B, version = "nonlinear"
+    )
+  }
+  
 
-for (j in seq_len(J)) {
-  cat("Running replication", j, "of", J, "\n")
-  
-  sim_results_linear[[j]] <- compute_simulation(
-    n = 100, J =j, B = 1000, version = "linear"
-  )
-  
-  sim_results_nonlinear[[j]] <- compute_simulation(
-    n = 100, J = j, B = 1000, version = "nonlinear"
-  )
+  return(list(sim_results_linear = sim_results_linear,
+               sim_results_nonlinear = sim_results_nonlinear))
 }
-
-saveRDS(sim_results_linear, "simple_linear_n100.rds") 
-saveRDS(sim_results_nonlinear, "simple_nonlinear_n100.rds")
 
 ####################################################################################
 # RESULTS STORAGE AND EXTRACTION (UPDATED)
 ####################################################################################
 
-# --- Initialize storage vectors for all metrics ---
-# Bias
-softbart_bias_linear <- numeric(J); softbart_bias_nonlinear <- numeric(J)
-softbart_boot_bias_linear <- numeric(J); softbart_boot_bias_nonlinear <- numeric(J)
-
-ranger_bias_linear <- numeric(J); ranger_bias_nonlinear <- numeric(J)
-ranger_boot_bias_linear <- numeric(J); ranger_boot_bias_nonlinear <- numeric(J)
-
-xgboost_bias_linear <- numeric(J); xgboost_bias_nonlinear <- numeric(J)
-xgboost_boot_bias_linear <- numeric(J); xgboost_boot_bias_nonlinear <- numeric(J)
-
-# RMSE
-softbart_rmse_linear <- numeric(J); softbart_rmse_nonlinear <- numeric(J)
-softbart_boot_rmse_linear <- numeric(J); softbart_boot_rmse_nonlinear <- numeric(J)
-
-ranger_rmse_linear <- numeric(J); ranger_rmse_nonlinear <- numeric(J)
-ranger_boot_rmse_linear <- numeric(J); ranger_boot_rmse_nonlinear <- numeric(J)
-
-xgboost_rmse_linear <- numeric(J); xgboost_rmse_nonlinear <- numeric(J)
-xgboost_boot_rmse_linear <- numeric(J); xgboost_boot_rmse_nonlinear <- numeric(J)
-
-# Interval lengths
-softbart_boot_int_linear <- numeric(J); softbart_conf_int_linear <- numeric(J)
-softbart_boot_int_nonlinear <- numeric(J); softbart_conf_int_nonlinear <- numeric(J)
-
-ranger_boot_int_linear <- numeric(J); ranger_conf_int_linear <- numeric(J)
-ranger_boot_int_nonlinear <- numeric(J); ranger_conf_int_nonlinear <- numeric(J)
-
-xgboost_boot_int_linear <- numeric(J); xgboost_conf_int_linear <- numeric(J)
-xgboost_boot_int_nonlinear <- numeric(J); xgboost_conf_int_nonlinear <- numeric(J)
-
-# Coverage
-softbart_boot_cov_linear <- numeric(J); softbart_conf_cov_linear <- numeric(J)
-softbart_boot_cov_nonlinear <- numeric(J); softbart_conf_cov_nonlinear <- numeric(J)
-
-ranger_boot_cov_linear <- numeric(J); ranger_conf_cov_linear <- numeric(J)
-ranger_boot_cov_nonlinear <- numeric(J); ranger_conf_cov_nonlinear <- numeric(J)
-
-xgboost_boot_cov_linear <- numeric(J); xgboost_conf_cov_linear <- numeric(J)
-xgboost_boot_cov_nonlinear <- numeric(J); xgboost_conf_cov_nonlinear <- numeric(J)
-
-# Time
-softbart_time_linear <- numeric(J); softbart_time_nonlinear <- numeric(J)
-ranger_time_linear <- numeric(J); ranger_time_nonlinear <- numeric(J)
-xgboost_time_linear <- numeric(J); xgboost_time_nonlinear <- numeric(J)
-
-# --- Extract metrics from results ---
-for (j in 1:J) {
+plots <- function(results) {
+  sim_results_linear <- results$sim_results_linear
+  sim_results_nonlinear <- results$sim_results_nonlinear
   
-  lin <- sim_results_linear[[j]]
-  nl  <- sim_results_nonlinear[[j]]
-  
+  # --- Initialize storage vectors for all metrics ---
+
   # Bias
-  softbart_bias_linear[j] <- lin$bias$softbart_bias
-  softbart_boot_bias_linear[j] <- lin$bias$softbart_boot_bias
-  softbart_bias_nonlinear[j] <- nl$bias$softbart_bias
-  softbart_boot_bias_nonlinear[j] <- nl$bias$softbart_boot_bias
+  softbart_bias_linear <- numeric(J); softbart_bias_nonlinear <- numeric(J)
+  softbart_boot_bias_linear <- numeric(J); softbart_boot_bias_nonlinear <- numeric(J)
   
-  ranger_bias_linear[j] <- lin$bias$ranger_bias
-  ranger_boot_bias_linear[j] <- lin$bias$ranger_boot_bias
-  ranger_bias_nonlinear[j] <- nl$bias$ranger_bias
-  ranger_boot_bias_nonlinear[j] <- nl$bias$ranger_boot_bias
+  ranger_bias_linear <- numeric(J); ranger_bias_nonlinear <- numeric(J)
+  ranger_boot_bias_linear <- numeric(J); ranger_boot_bias_nonlinear <- numeric(J)
   
-  xgboost_bias_linear[j] <- lin$bias$xgboost_bias
-  xgboost_boot_bias_linear[j] <- lin$bias$xgboost_boot_bias
-  xgboost_bias_nonlinear[j] <- nl$bias$xgboost_bias
-  xgboost_boot_bias_nonlinear[j] <- nl$bias$xgboost_boot_bias
+  xgboost_bias_linear <- numeric(J); xgboost_bias_nonlinear <- numeric(J)
+  xgboost_boot_bias_linear <- numeric(J); xgboost_boot_bias_nonlinear <- numeric(J)
   
   # RMSE
-  softbart_rmse_linear[j] <- lin$rmse$softbart_rmse
-  softbart_boot_rmse_linear[j] <- lin$rmse$softbart_boot_rmse
-  softbart_rmse_nonlinear[j] <- nl$rmse$softbart_rmse
-  softbart_boot_rmse_nonlinear[j] <- nl$rmse$softbart_boot_rmse
+  softbart_rmse_linear <- numeric(J); softbart_rmse_nonlinear <- numeric(J)
+  softbart_boot_rmse_linear <- numeric(J); softbart_boot_rmse_nonlinear <- numeric(J)
   
-  ranger_rmse_linear[j] <- lin$rmse$ranger_rmse
-  ranger_boot_rmse_linear[j] <- lin$rmse$ranger_boot_rmse
-  ranger_rmse_nonlinear[j] <- nl$rmse$ranger_rmse
-  ranger_boot_rmse_nonlinear[j] <- nl$rmse$ranger_boot_rmse
+  ranger_rmse_linear <- numeric(J); ranger_rmse_nonlinear <- numeric(J)
+  ranger_boot_rmse_linear <- numeric(J); ranger_boot_rmse_nonlinear <- numeric(J)
   
-  xgboost_rmse_linear[j] <- lin$rmse$xgboost_rmse
-  xgboost_boot_rmse_linear[j] <- lin$rmse$xgboost_boot_rmse
-  xgboost_rmse_nonlinear[j] <- nl$rmse$xgboost_rmse
-  xgboost_boot_rmse_nonlinear[j] <- nl$rmse$xgboost_boot_rmse
+  xgboost_rmse_linear <- numeric(J); xgboost_rmse_nonlinear <- numeric(J)
+  xgboost_boot_rmse_linear <- numeric(J); xgboost_boot_rmse_nonlinear <- numeric(J)
   
   # Interval lengths
-  softbart_boot_int_linear[j] <- lin$interval_length$softbart_boot_int_length
-  softbart_conf_int_linear[j] <- lin$interval_length$softbart_conf_int_length
-  softbart_boot_int_nonlinear[j] <- nl$interval_length$softbart_boot_int_length
-  softbart_conf_int_nonlinear[j] <- nl$interval_length$softbart_conf_int_length
+  softbart_boot_int_linear <- numeric(J); softbart_conf_int_linear <- numeric(J)
+  softbart_boot_int_nonlinear <- numeric(J); softbart_conf_int_nonlinear <- numeric(J)
   
-  ranger_boot_int_linear[j] <- lin$interval_length$ranger_boot_int_length
-  ranger_conf_int_linear[j] <- lin$interval_length$ranger_conf_int_length
-  ranger_boot_int_nonlinear[j] <- nl$interval_length$ranger_boot_int_length
-  ranger_conf_int_nonlinear[j] <- nl$interval_length$ranger_conf_int_length
+  ranger_boot_int_linear <- numeric(J); ranger_conf_int_linear <- numeric(J)
+  ranger_boot_int_nonlinear <- numeric(J); ranger_conf_int_nonlinear <- numeric(J)
   
-  xgboost_boot_int_linear[j] <- lin$interval_length$xgboost_boot_int_length
-  xgboost_conf_int_linear[j] <- lin$interval_length$xgboost_conf_int_length
-  xgboost_boot_int_nonlinear[j] <- nl$interval_length$xgboost_boot_int_length
-  xgboost_conf_int_nonlinear[j] <- nl$interval_length$xgboost_conf_int_length
+  xgboost_boot_int_linear <- numeric(J); xgboost_conf_int_linear <- numeric(J)
+  xgboost_boot_int_nonlinear <- numeric(J); xgboost_conf_int_nonlinear <- numeric(J)
   
   # Coverage
-  softbart_boot_cov_linear[j] <- lin$coverage$softbart_boot_coverage
-  softbart_conf_cov_linear[j] <- lin$coverage$softbart_conf_coverage
-  softbart_boot_cov_nonlinear[j] <- nl$coverage$softbart_boot_coverage
-  softbart_conf_cov_nonlinear[j] <- nl$coverage$softbart_conf_coverage
+  softbart_boot_cov_linear <- numeric(J); softbart_conf_cov_linear <- numeric(J)
+  softbart_boot_cov_nonlinear <- numeric(J); softbart_conf_cov_nonlinear <- numeric(J)
   
-  ranger_boot_cov_linear[j] <- lin$coverage$ranger_boot_coverage
-  ranger_conf_cov_linear[j] <- lin$coverage$ranger_conf_coverage
-  ranger_boot_cov_nonlinear[j] <- nl$coverage$ranger_boot_coverage
-  ranger_conf_cov_nonlinear[j] <- nl$coverage$ranger_conf_coverage
+  ranger_boot_cov_linear <- numeric(J); ranger_conf_cov_linear <- numeric(J)
+  ranger_boot_cov_nonlinear <- numeric(J); ranger_conf_cov_nonlinear <- numeric(J)
   
-  xgboost_boot_cov_linear[j] <- lin$coverage$xgboost_boot_coverage
-  xgboost_conf_cov_linear[j] <- lin$coverage$xgboost_conf_coverage
-  xgboost_boot_cov_nonlinear[j] <- nl$coverage$xgboost_boot_coverage
-  xgboost_conf_cov_nonlinear[j] <- nl$coverage$xgboost_conf_coverage
+  xgboost_boot_cov_linear <- numeric(J); xgboost_conf_cov_linear <- numeric(J)
+  xgboost_boot_cov_nonlinear <- numeric(J); xgboost_conf_cov_nonlinear <- numeric(J)
   
   # Time
-  softbart_time_linear[j] <- lin$time$softbart_time[["elapsed"]]
-  softbart_time_nonlinear[j] <- nl$time$softbart_time[["elapsed"]]
+  softbart_time_linear <- numeric(J); softbart_time_nonlinear <- numeric(J)
+  ranger_time_linear <- numeric(J); ranger_time_nonlinear <- numeric(J)
+  xgboost_time_linear <- numeric(J); xgboost_time_nonlinear <- numeric(J)
   
-  ranger_time_linear[j] <- lin$time$ranger_time[["elapsed"]]
-  ranger_time_nonlinear[j] <- nl$time$ranger_time[["elapsed"]]
+  # --- Extract metrics from results ---
+  for (j in 1:J) {
+    
+    lin <- sim_results_linear[[j]]
+    nl  <- sim_results_nonlinear[[j]]
+    
+    # Bias
+    softbart_bias_linear[j] <- lin$bias$softbart_bias
+    softbart_boot_bias_linear[j] <- lin$bias$softbart_boot_bias
+    softbart_bias_nonlinear[j] <- nl$bias$softbart_bias
+    softbart_boot_bias_nonlinear[j] <- nl$bias$softbart_boot_bias
+    
+    ranger_bias_linear[j] <- lin$bias$ranger_bias
+    ranger_boot_bias_linear[j] <- lin$bias$ranger_boot_bias
+    ranger_bias_nonlinear[j] <- nl$bias$ranger_bias
+    ranger_boot_bias_nonlinear[j] <- nl$bias$ranger_boot_bias
+    
+    xgboost_bias_linear[j] <- lin$bias$xgboost_bias
+    xgboost_boot_bias_linear[j] <- lin$bias$xgboost_boot_bias
+    xgboost_bias_nonlinear[j] <- nl$bias$xgboost_bias
+    xgboost_boot_bias_nonlinear[j] <- nl$bias$xgboost_boot_bias
+    
+    # RMSE
+    softbart_rmse_linear[j] <- lin$rmse$softbart_rmse
+    softbart_boot_rmse_linear[j] <- lin$rmse$softbart_boot_rmse
+    softbart_rmse_nonlinear[j] <- nl$rmse$softbart_rmse
+    softbart_boot_rmse_nonlinear[j] <- nl$rmse$softbart_boot_rmse
+    
+    ranger_rmse_linear[j] <- lin$rmse$ranger_rmse
+    ranger_boot_rmse_linear[j] <- lin$rmse$ranger_boot_rmse
+    ranger_rmse_nonlinear[j] <- nl$rmse$ranger_rmse
+    ranger_boot_rmse_nonlinear[j] <- nl$rmse$ranger_boot_rmse
+    
+    xgboost_rmse_linear[j] <- lin$rmse$xgboost_rmse
+    xgboost_boot_rmse_linear[j] <- lin$rmse$xgboost_boot_rmse
+    xgboost_rmse_nonlinear[j] <- nl$rmse$xgboost_rmse
+    xgboost_boot_rmse_nonlinear[j] <- nl$rmse$xgboost_boot_rmse
+    
+    # Interval lengths
+    softbart_boot_int_linear[j] <- lin$interval_length$softbart_boot_int_length
+    softbart_conf_int_linear[j] <- lin$interval_length$softbart_conf_int_length
+    softbart_boot_int_nonlinear[j] <- nl$interval_length$softbart_boot_int_length
+    softbart_conf_int_nonlinear[j] <- nl$interval_length$softbart_conf_int_length
+    
+    ranger_boot_int_linear[j] <- lin$interval_length$ranger_boot_int_length
+    ranger_conf_int_linear[j] <- lin$interval_length$ranger_conf_int_length
+    ranger_boot_int_nonlinear[j] <- nl$interval_length$ranger_boot_int_length
+    ranger_conf_int_nonlinear[j] <- nl$interval_length$ranger_conf_int_length
+    
+    xgboost_boot_int_linear[j] <- lin$interval_length$xgboost_boot_int_length
+    xgboost_conf_int_linear[j] <- lin$interval_length$xgboost_conf_int_length
+    xgboost_boot_int_nonlinear[j] <- nl$interval_length$xgboost_boot_int_length
+    xgboost_conf_int_nonlinear[j] <- nl$interval_length$xgboost_conf_int_length
+    
+    # Coverage
+    softbart_boot_cov_linear[j] <- lin$coverage$softbart_boot_coverage
+    softbart_conf_cov_linear[j] <- lin$coverage$softbart_conf_coverage
+    softbart_boot_cov_nonlinear[j] <- nl$coverage$softbart_boot_coverage
+    softbart_conf_cov_nonlinear[j] <- nl$coverage$softbart_conf_coverage
+    
+    ranger_boot_cov_linear[j] <- lin$coverage$ranger_boot_coverage
+    ranger_conf_cov_linear[j] <- lin$coverage$ranger_conf_coverage
+    ranger_boot_cov_nonlinear[j] <- nl$coverage$ranger_boot_coverage
+    ranger_conf_cov_nonlinear[j] <- nl$coverage$ranger_conf_coverage
+    
+    xgboost_boot_cov_linear[j] <- lin$coverage$xgboost_boot_coverage
+    xgboost_conf_cov_linear[j] <- lin$coverage$xgboost_conf_coverage
+    xgboost_boot_cov_nonlinear[j] <- nl$coverage$xgboost_boot_coverage
+    xgboost_conf_cov_nonlinear[j] <- nl$coverage$xgboost_conf_coverage
+    
+    # Time
+    softbart_time_linear[j] <- lin$time$softbart_time[["elapsed"]]
+    softbart_time_nonlinear[j] <- nl$time$softbart_time[["elapsed"]]
+    
+    ranger_time_linear[j] <- lin$time$ranger_time[["elapsed"]]
+    ranger_time_nonlinear[j] <- nl$time$ranger_time[["elapsed"]]
+    
+    xgboost_time_linear[j] <- lin$time$xgboost_time[["elapsed"]]
+    xgboost_time_nonlinear[j] <- nl$time$xgboost_time[["elapsed"]]
+  }
   
-  xgboost_time_linear[j] <- lin$time$xgboost_time[["elapsed"]]
-  xgboost_time_nonlinear[j] <- nl$time$xgboost_time[["elapsed"]]
+  ####################################################################################
+  # CREATE DATA FRAMES FOR PLOTTING
+  ####################################################################################
+  
+  # Bias
+  bias_linear_df <- data.frame(
+    model = c("SoftBART","Ranger","XGBoost"),
+    bias = c(mean(abs(softbart_bias_linear)), mean(abs(ranger_bias_linear)), mean(abs(xgboost_bias_linear))),
+    boot_bias = c(mean(abs(softbart_boot_bias_linear)), mean(abs(ranger_boot_bias_linear)), mean(abs(xgboost_boot_bias_linear)))
+  )
+  bias_nonlinear_df <- data.frame(
+    model = c("SoftBART","Ranger","XGBoost"),
+    bias = c(mean(abs(softbart_bias_nonlinear)), mean(abs(ranger_bias_nonlinear)), mean(abs(xgboost_bias_nonlinear))),
+    boot_bias = c(mean(abs(softbart_boot_bias_nonlinear)), mean(abs(ranger_boot_bias_nonlinear)), mean(abs(xgboost_boot_bias_nonlinear)))
+  )
+  
+  # RMSE
+  rmse_linear_df <- data.frame(
+    model = c("SoftBART","Ranger","XGBoost"),
+    rmse = c(mean(softbart_rmse_linear), mean(ranger_rmse_linear), mean(xgboost_rmse_linear)),
+    boot_rmse = c(mean(softbart_boot_rmse_linear), mean(ranger_boot_rmse_linear), mean(xgboost_boot_rmse_linear))
+  )
+  rmse_nonlinear_df <- data.frame(
+    model = c("SoftBART","Ranger","XGBoost"),
+    rmse = c(mean(softbart_rmse_nonlinear), mean(ranger_rmse_nonlinear), mean(xgboost_rmse_nonlinear)),
+    boot_rmse = c(mean(softbart_boot_rmse_nonlinear), mean(ranger_boot_rmse_nonlinear), mean(xgboost_boot_rmse_nonlinear))
+  )
+  
+  # Interval lengths
+  interval_linear_df <- data.frame(
+    model = rep(c("SoftBART","Ranger","XGBoost"), each = 2),
+    type = rep(c("Bootstrap","Conformal"), times = 3),
+    interval = c(
+      mean(softbart_boot_int_linear), mean(softbart_conf_int_linear),
+      mean(ranger_boot_int_linear), mean(ranger_conf_int_linear),
+      mean(xgboost_boot_int_linear), mean(xgboost_conf_int_linear)
+    )
+  )
+  interval_nonlinear_df <- data.frame(
+    model = rep(c("SoftBART","Ranger","XGBoost"), each = 2),
+    type = rep(c("Bootstrap","Conformal"), times = 3),
+    interval = c(
+      mean(softbart_boot_int_nonlinear), mean(softbart_conf_int_nonlinear),
+      mean(ranger_boot_int_nonlinear), mean(ranger_conf_int_nonlinear),
+      mean(xgboost_boot_int_nonlinear), mean(xgboost_conf_int_nonlinear)
+    )
+  )
+  
+  # Coverage
+  coverage_linear_df <- data.frame(
+    model = rep(c("SoftBART","Ranger","XGBoost"), each = 2),
+    type = rep(c("Bootstrap","Conformal"), times = 3),
+    coverage = c(
+      mean(softbart_boot_cov_linear), mean(softbart_conf_cov_linear),
+      mean(ranger_boot_cov_linear), mean(ranger_conf_cov_linear),
+      mean(xgboost_boot_cov_linear), mean(xgboost_conf_cov_linear)
+    )
+  )
+  coverage_nonlinear_df <- data.frame(
+    model = rep(c("SoftBART","Ranger","XGBoost"), each = 2),
+    type = rep(c("Bootstrap","Conformal"), times = 3),
+    coverage = c(
+      mean(softbart_boot_cov_nonlinear), mean(softbart_conf_cov_nonlinear),
+      mean(ranger_boot_cov_nonlinear), mean(ranger_conf_cov_nonlinear),
+      mean(xgboost_boot_cov_nonlinear), mean(xgboost_conf_cov_nonlinear)
+    )
+  )
+  
+  # Time
+  time_linear_df <- data.frame(
+    model = c("SoftBART","Ranger","XGBoost"),
+    time = c(mean(softbart_time_linear), mean(ranger_time_linear), mean(xgboost_time_linear))
+  )
+  time_nonlinear_df <- data.frame(
+    model = c("SoftBART","Ranger","XGBoost"),
+    time = c(mean(softbart_time_nonlinear), mean(ranger_time_nonlinear), mean(xgboost_time_nonlinear))
+  )
+  
+  ### === BIAS PLOTS === ###
+  bias_linear_plot <- ggplot(bias_linear_df, aes(x = model, y = bias)) +
+    geom_col(fill = "skyblue") +
+    geom_text(aes(label = round(bias, 2)), vjust = -0.5, size = 4) +
+    labs(title = "Mean Absolute Bias (Linear DGP)", x = "Model", y = "Bias") +
+    theme_minimal(base_size = 14)
+  
+  bias_linear_boot_plot <- ggplot(bias_linear_df, aes(x = model, y = boot_bias)) +
+    geom_col(fill = "deepskyblue4") +
+    geom_text(aes(label = round(boot_bias, 2)), vjust = -0.5, size = 4) +
+    labs(title = "Mean Absolute Bias (Linear DGP) — Bootstrap", x = "Model", y = "Bootstrap Bias") +
+    theme_minimal(base_size = 14)
+  
+  bias_nonlinear_plot <- ggplot(bias_nonlinear_df, aes(x = model, y = bias)) +
+    geom_col(fill = "skyblue") +
+    geom_text(aes(label = round(bias, 2)), vjust = -0.5, size = 4) +
+    labs(title = "Mean Absolute Bias (Nonlinear DGP)", x = "Model", y = "Bias") +
+    theme_minimal(base_size = 14)
+  
+  bias_nonlinear_boot_plot <- ggplot(bias_nonlinear_df, aes(x = model, y = boot_bias)) +
+    geom_col(fill = "deepskyblue4") +
+    geom_text(aes(label = round(boot_bias, 2)), vjust = -0.5, size = 4) +
+    labs(title = "Mean Absolute Bias (Nonlinear DGP) — Bootstrap", x = "Model", y = "Bootstrap Bias") +
+    theme_minimal(base_size = 14)
+  
+  ### === RMSE PLOTS === ###
+  rmse_linear_plot <- ggplot(rmse_linear_df, aes(x = model, y = rmse)) +
+    geom_col(fill = "orange") +
+    geom_text(aes(label = round(rmse, 2)), vjust = -0.5, size = 4) +
+    labs(title = "RMSE (Linear DGP)", x = "Model", y = "RMSE") +
+    theme_minimal(base_size = 14)
+  
+  rmse_linear_boot_plot <- ggplot(rmse_linear_df, aes(x = model, y = boot_rmse)) +
+    geom_col(fill = "darkorange3") +
+    geom_text(aes(label = round(boot_rmse, 2)), vjust = -0.5, size = 4) +
+    labs(title = "RMSE (Linear DGP) — Bootstrap", x = "Model", y = "Bootstrap RMSE") +
+    theme_minimal(base_size = 14)
+  
+  rmse_nonlinear_plot <- ggplot(rmse_nonlinear_df, aes(x = model, y = rmse)) +
+    geom_col(fill = "orange") +
+    geom_text(aes(label = round(rmse, 2)), vjust = -0.5, size = 4) +
+    labs(title = "RMSE (Nonlinear DGP)", x = "Model", y = "RMSE") +
+    theme_minimal(base_size = 14)
+  
+  rmse_nonlinear_boot_plot <- ggplot(rmse_nonlinear_df, aes(x = model, y = boot_rmse)) +
+    geom_col(fill = "darkorange3") +
+    geom_text(aes(label = round(boot_rmse, 2)), vjust = -0.5, size = 4) +
+    labs(title = "RMSE (Nonlinear DGP) — Bootstrap", x = "Model", y = "Bootstrap RMSE") +
+    theme_minimal(base_size = 14)
+  
+  ### === INTERVAL LENGTH PLOTS === ###
+  interval_linear_plot <- ggplot(interval_linear_df, aes(x = model, y = interval, fill = type)) +
+    geom_col(position = position_dodge(width = 0.7)) +
+    geom_text(aes(label = round(interval, 2)), position = position_dodge(width = 0.7), vjust = -0.5, size = 4) +
+    labs(title = "Interval Length (Linear DGP)", x = "Model", y = "Mean Interval Length") +
+    scale_fill_brewer(palette = "Set2") +
+    theme_minimal(base_size = 14)
+  
+  interval_nonlinear_plot <- ggplot(interval_nonlinear_df, aes(x = model, y = interval, fill = type)) +
+    geom_col(position = position_dodge(width = 0.7)) +
+    geom_text(aes(label = round(interval, 2)), position = position_dodge(width = 0.7), vjust = -0.5, size = 4) +
+    labs(title = "Interval Length (Nonlinear DGP)", x = "Model", y = "Mean Interval Length") +
+    scale_fill_brewer(palette = "Set2") +
+    theme_minimal(base_size = 14)
+  
+  ### === COVERAGE PLOTS === ###
+  coverage_linear_plot <- ggplot(coverage_linear_df, aes(x = model, y = coverage, fill = type)) +
+    geom_col(position = position_dodge(width = 0.7)) +
+    geom_text(aes(label = round(coverage, 2)), position = position_dodge(width = 0.7), vjust = -0.5, size = 4) +
+    labs(title = "Coverage (Linear DGP)", x = "Model", y = "Coverage") +
+    scale_fill_brewer(palette = "Set2") +
+    theme_minimal(base_size = 14)
+  
+  coverage_nonlinear_plot <- ggplot(coverage_nonlinear_df, aes(x = model, y = coverage, fill = type)) +
+    geom_col(position = position_dodge(width = 0.7)) +
+    geom_text(aes(label = round(coverage, 2)), position = position_dodge(width = 0.7), vjust = -0.5, size = 4) +
+    labs(title = "Coverage (Nonlinear DGP)", x = "Model", y = "Coverage") +
+    scale_fill_brewer(palette = "Set2") +
+    theme_minimal(base_size = 14)
+  
+  ### === COMPUTATION TIME PLOTS === ###
+  time_linear_plot <- ggplot(time_linear_df, aes(x = model, y = time)) +
+    geom_col(fill = "grey50") +
+    geom_text(aes(label = round(time, 2)), vjust = -0.5, size = 4) +
+    labs(title = "Computation Time (Linear DGP)", x = "Model", y = "Time (s)") +
+    theme_minimal(base_size = 14)
+  
+  time_nonlinear_plot <- ggplot(time_nonlinear_df, aes(x = model, y = time)) +
+    geom_col(fill = "grey50") +
+    geom_text(aes(label = round(time, 2)), vjust = -0.5, size = 4) +
+    labs(title = "Computation Time (Nonlinear DGP)", x = "Model", y = "Time (s)") +
+    theme_minimal(base_size = 14)
+  
+  ### === COMBINE PLOTS === ###
+  combined_plot_bias <- bias_linear_plot + bias_linear_boot_plot + bias_nonlinear_plot + bias_nonlinear_boot_plot
+  combined_plot_rmse <- rmse_linear_plot + rmse_linear_boot_plot + rmse_nonlinear_plot + rmse_nonlinear_boot_plot
+  combined_plot_interval <- interval_linear_plot + interval_nonlinear_plot 
+  combined_plot_coverage <- coverage_linear_plot + coverage_nonlinear_plot
+  time_plots <- time_linear_plot + time_nonlinear_plot
+  
+  return(list(
+    combined_plot_bias = combined_plot_bias,
+    combined_plot_rmse = combined_plot_rmse,
+    combined_plot_interval = combined_plot_interval,
+    combined_plot_coverage = combined_plot_coverage,
+    time_plots = time_plots
+  ))
 }
 
+
 ####################################################################################
-# CREATE DATA FRAMES FOR PLOTTING
+# ******************************************************************************
 ####################################################################################
+#end of funcitons 
+n100_results <- run_study(n = 100, B = 1000, J = 50)
 
-# Bias
-bias_linear_df <- data.frame(
-  model = c("SoftBART","Ranger","XGBoost"),
-  bias = c(mean(abs(softbart_bias_linear)), mean(abs(ranger_bias_linear)), mean(abs(xgboost_bias_linear))),
-  boot_bias = c(mean(abs(softbart_boot_bias_linear)), mean(abs(ranger_boot_bias_linear)), mean(abs(xgboost_boot_bias_linear)))
-)
-bias_nonlinear_df <- data.frame(
-  model = c("SoftBART","Ranger","XGBoost"),
-  bias = c(mean(abs(softbart_bias_nonlinear)), mean(abs(ranger_bias_nonlinear)), mean(abs(xgboost_bias_nonlinear))),
-  boot_bias = c(mean(abs(softbart_boot_bias_nonlinear)), mean(abs(ranger_boot_bias_nonlinear)), mean(abs(xgboost_boot_bias_nonlinear)))
-)
+# change to your own
+setwd("/Users/tylerschmidt/Work/School/STAT5400/Uncertainty-Quantification")
+saveRDS(n100_results, "n100_results")
 
-# RMSE
-rmse_linear_df <- data.frame(
-  model = c("SoftBART","Ranger","XGBoost"),
-  rmse = c(mean(softbart_rmse_linear), mean(ranger_rmse_linear), mean(xgboost_rmse_linear)),
-  boot_rmse = c(mean(softbart_boot_rmse_linear), mean(ranger_boot_rmse_linear), mean(xgboost_boot_rmse_linear))
-)
-rmse_nonlinear_df <- data.frame(
-  model = c("SoftBART","Ranger","XGBoost"),
-  rmse = c(mean(softbart_rmse_nonlinear), mean(ranger_rmse_nonlinear), mean(xgboost_rmse_nonlinear)),
-  boot_rmse = c(mean(softbart_boot_rmse_nonlinear), mean(ranger_boot_rmse_nonlinear), mean(xgboost_boot_rmse_nonlinear))
-)
-
-# Interval lengths
-interval_linear_df <- data.frame(
-  model = rep(c("SoftBART","Ranger","XGBoost"), each = 2),
-  type = rep(c("Bootstrap","Conformal"), times = 3),
-  interval = c(
-    mean(softbart_boot_int_linear), mean(softbart_conf_int_linear),
-    mean(ranger_boot_int_linear), mean(ranger_conf_int_linear),
-    mean(xgboost_boot_int_linear), mean(xgboost_conf_int_linear)
-  )
-)
-interval_nonlinear_df <- data.frame(
-  model = rep(c("SoftBART","Ranger","XGBoost"), each = 2),
-  type = rep(c("Bootstrap","Conformal"), times = 3),
-  interval = c(
-    mean(softbart_boot_int_nonlinear), mean(softbart_conf_int_nonlinear),
-    mean(ranger_boot_int_nonlinear), mean(ranger_conf_int_nonlinear),
-    mean(xgboost_boot_int_nonlinear), mean(xgboost_conf_int_nonlinear)
-  )
-)
-
-# Coverage
-coverage_linear_df <- data.frame(
-  model = rep(c("SoftBART","Ranger","XGBoost"), each = 2),
-  type = rep(c("Bootstrap","Conformal"), times = 3),
-  coverage = c(
-    mean(softbart_boot_cov_linear), mean(softbart_conf_cov_linear),
-    mean(ranger_boot_cov_linear), mean(ranger_conf_cov_linear),
-    mean(xgboost_boot_cov_linear), mean(xgboost_conf_cov_linear)
-  )
-)
-coverage_nonlinear_df <- data.frame(
-  model = rep(c("SoftBART","Ranger","XGBoost"), each = 2),
-  type = rep(c("Bootstrap","Conformal"), times = 3),
-  coverage = c(
-    mean(softbart_boot_cov_nonlinear), mean(softbart_conf_cov_nonlinear),
-    mean(ranger_boot_cov_nonlinear), mean(ranger_conf_cov_nonlinear),
-    mean(xgboost_boot_cov_nonlinear), mean(xgboost_conf_cov_nonlinear)
-  )
-)
-
-# Time
-time_linear_df <- data.frame(
-  model = c("SoftBART","Ranger","XGBoost"),
-  time = c(mean(softbart_time_linear), mean(ranger_time_linear), mean(xgboost_time_linear))
-)
-time_nonlinear_df <- data.frame(
-  model = c("SoftBART","Ranger","XGBoost"),
-  time = c(mean(softbart_time_nonlinear), mean(ranger_time_nonlinear), mean(xgboost_time_nonlinear))
-)
-
-### === BIAS PLOTS === ###
-bias_linear_plot <- ggplot(bias_linear_df, aes(x = model, y = bias)) +
-  geom_col(fill = "skyblue") +
-  geom_text(aes(label = round(bias, 2)), vjust = -0.5, size = 4) +
-  labs(title = "Mean Absolute Bias (Linear DGP)", x = "Model", y = "Bias") +
-  theme_minimal(base_size = 14)
-
-bias_linear_boot_plot <- ggplot(bias_linear_df, aes(x = model, y = boot_bias)) +
-  geom_col(fill = "deepskyblue4") +
-  geom_text(aes(label = round(boot_bias, 2)), vjust = -0.5, size = 4) +
-  labs(title = "Mean Absolute Bias (Linear DGP) — Bootstrap", x = "Model", y = "Bootstrap Bias") +
-  theme_minimal(base_size = 14)
-
-bias_nonlinear_plot <- ggplot(bias_nonlinear_df, aes(x = model, y = bias)) +
-  geom_col(fill = "skyblue") +
-  geom_text(aes(label = round(bias, 2)), vjust = -0.5, size = 4) +
-  labs(title = "Mean Absolute Bias (Nonlinear DGP)", x = "Model", y = "Bias") +
-  theme_minimal(base_size = 14)
-
-bias_nonlinear_boot_plot <- ggplot(bias_nonlinear_df, aes(x = model, y = boot_bias)) +
-  geom_col(fill = "deepskyblue4") +
-  geom_text(aes(label = round(boot_bias, 2)), vjust = -0.5, size = 4) +
-  labs(title = "Mean Absolute Bias (Nonlinear DGP) — Bootstrap", x = "Model", y = "Bootstrap Bias") +
-  theme_minimal(base_size = 14)
-
-### === RMSE PLOTS === ###
-rmse_linear_plot <- ggplot(rmse_linear_df, aes(x = model, y = rmse)) +
-  geom_col(fill = "orange") +
-  geom_text(aes(label = round(rmse, 2)), vjust = -0.5, size = 4) +
-  labs(title = "RMSE (Linear DGP)", x = "Model", y = "RMSE") +
-  theme_minimal(base_size = 14)
-
-rmse_linear_boot_plot <- ggplot(rmse_linear_df, aes(x = model, y = boot_rmse)) +
-  geom_col(fill = "darkorange3") +
-  geom_text(aes(label = round(boot_rmse, 2)), vjust = -0.5, size = 4) +
-  labs(title = "RMSE (Linear DGP) — Bootstrap", x = "Model", y = "Bootstrap RMSE") +
-  theme_minimal(base_size = 14)
-
-rmse_nonlinear_plot <- ggplot(rmse_nonlinear_df, aes(x = model, y = rmse)) +
-  geom_col(fill = "orange") +
-  geom_text(aes(label = round(rmse, 2)), vjust = -0.5, size = 4) +
-  labs(title = "RMSE (Nonlinear DGP)", x = "Model", y = "RMSE") +
-  theme_minimal(base_size = 14)
-
-rmse_nonlinear_boot_plot <- ggplot(rmse_nonlinear_df, aes(x = model, y = boot_rmse)) +
-  geom_col(fill = "darkorange3") +
-  geom_text(aes(label = round(boot_rmse, 2)), vjust = -0.5, size = 4) +
-  labs(title = "RMSE (Nonlinear DGP) — Bootstrap", x = "Model", y = "Bootstrap RMSE") +
-  theme_minimal(base_size = 14)
-
-### === INTERVAL LENGTH PLOTS === ###
-interval_linear_plot <- ggplot(interval_linear_df, aes(x = model, y = interval, fill = type)) +
-  geom_col(position = position_dodge(width = 0.7)) +
-  geom_text(aes(label = round(interval, 2)), position = position_dodge(width = 0.7), vjust = -0.5, size = 4) +
-  labs(title = "Interval Length (Linear DGP)", x = "Model", y = "Mean Interval Length") +
-  scale_fill_brewer(palette = "Set2") +
-  theme_minimal(base_size = 14)
-
-interval_nonlinear_plot <- ggplot(interval_nonlinear_df, aes(x = model, y = interval, fill = type)) +
-  geom_col(position = position_dodge(width = 0.7)) +
-  geom_text(aes(label = round(interval, 2)), position = position_dodge(width = 0.7), vjust = -0.5, size = 4) +
-  labs(title = "Interval Length (Nonlinear DGP)", x = "Model", y = "Mean Interval Length") +
-  scale_fill_brewer(palette = "Set2") +
-  theme_minimal(base_size = 14)
-
-### === COVERAGE PLOTS === ###
-coverage_linear_plot <- ggplot(coverage_linear_df, aes(x = model, y = coverage, fill = type)) +
-  geom_col(position = position_dodge(width = 0.7)) +
-  geom_text(aes(label = round(coverage, 2)), position = position_dodge(width = 0.7), vjust = -0.5, size = 4) +
-  labs(title = "Coverage (Linear DGP)", x = "Model", y = "Coverage") +
-  scale_fill_brewer(palette = "Set2") +
-  theme_minimal(base_size = 14)
-
-coverage_nonlinear_plot <- ggplot(coverage_nonlinear_df, aes(x = model, y = coverage, fill = type)) +
-  geom_col(position = position_dodge(width = 0.7)) +
-  geom_text(aes(label = round(coverage, 2)), position = position_dodge(width = 0.7), vjust = -0.5, size = 4) +
-  labs(title = "Coverage (Nonlinear DGP)", x = "Model", y = "Coverage") +
-  scale_fill_brewer(palette = "Set2") +
-  theme_minimal(base_size = 14)
-
-### === COMPUTATION TIME PLOTS === ###
-time_linear_plot <- ggplot(time_linear_df, aes(x = model, y = time)) +
-  geom_col(fill = "grey50") +
-  geom_text(aes(label = round(time, 2)), vjust = -0.5, size = 4) +
-  labs(title = "Computation Time (Linear DGP)", x = "Model", y = "Time (s)") +
-  theme_minimal(base_size = 14)
-
-time_nonlinear_plot <- ggplot(time_nonlinear_df, aes(x = model, y = time)) +
-  geom_col(fill = "grey50") +
-  geom_text(aes(label = round(time, 2)), vjust = -0.5, size = 4) +
-  labs(title = "Computation Time (Nonlinear DGP)", x = "Model", y = "Time (s)") +
-  theme_minimal(base_size = 14)
-
-### === COMBINE PLOTS === ###
-combined_plot_bias <- bias_linear_plot + bias_linear_boot_plot + bias_nonlinear_plot + bias_nonlinear_boot_plot
-
-combined_plot_rmse <- rmse_linear_plot + rmse_linear_boot_plot + rmse_nonlinear_plot + rmse_nonlinear_boot_plot
-combined_plot_interval <- interval_linear_plot + interval_nonlinear_plot 
-combined_plot_coverage <- coverage_linear_plot + coverage_nonlinear_plot
-
-
-time_plots <- time_linear_plot + time_nonlinear_plot
-
+sim_plots <- plots(n100_results)
 ### === PRINT PLOTS === ###
-print(combined_plot_bias)
-print(combined_plot_rmse)
-print(combined_plot_interval)
-print(combined_plot_coverage)
-print(time_plots)
+print(sim_plots$combined_plot_bias)
+print(sim_plots$combined_plot_rmse)
+print(sim_plots$combined_plot_interval)
+print(sim_plots$combined_plot_coverage)
+print(sim_plots$time_plots)
