@@ -171,8 +171,11 @@ model_fits <- function(data, train_idx, test_idx, calib_idx, B, verbose = FALSE)
     
     ranger_pred <- predict(ranger_fit, data = test_X)$predictions
     
+    # calibration fit 
+    ranger_pred_calib <- predict(ranger_fit, data = calib_X)$predictions
+    
     # Estimate residual standard deviation
-    resid_sd <- sd(train_Y - predict(ranger_fit, data[train_idx, ])$predictions)
+    resid_sd <- sd(calib_Y - ranger_pred_calib)
     
     # Bootstrap predictions for uncertainty quantification
     for (b in 1:B) {
@@ -188,8 +191,7 @@ model_fits <- function(data, train_idx, test_idx, calib_idx, B, verbose = FALSE)
       }
     })
   
-  # calibration fit 
-  ranger_pred_calib <- predict(ranger_fit, data = calib_X)$predictions
+  
   ranger_conformal <- split_conformal(calib_Y = calib_Y,
                                         calib_pred = ranger_pred_calib,
                                         test_pred = ranger_pred)
@@ -215,9 +217,13 @@ model_fits <- function(data, train_idx, test_idx, calib_idx, B, verbose = FALSE)
     
     # Fit original model to compute residual sd
     xgb_orig <- xgb.train(params = params, data = dtrain, nrounds = 100, verbose = 0)
-    resid_sd <- sd(train_Y - predict(xgb_orig, dtrain))
+    
     
     xgboost_pred <- predict(xgb_orig, dtest)
+    # calibration fit 
+    xgboost_pred_calib <- predict(xgb_orig, dcalib)
+    
+    resid_sd <- sd(calib_Y - xgboost_pred_calib)
     
     for (b in 1:B) {
       # Bootstrap resample
@@ -235,8 +241,7 @@ model_fits <- function(data, train_idx, test_idx, calib_idx, B, verbose = FALSE)
     }
   })
   
-  # calibration fit 
-  xgboost_pred_calib <- predict(xgb_orig, dcalib)
+  
   xgboost_conformal <- split_conformal(calib_Y = calib_Y,
                                       calib_pred = xgboost_pred_calib,
                                       test_pred = xgboost_pred)
@@ -771,11 +776,12 @@ plots <- function(results) {
 # ******************************************************************************
 ####################################################################################
 #end of funcitons 
-n100_results <- run_study(n = 100, B = 1000, J = 50)
+J = 5
+n100_results <- run_study(n = 100, B = 1000, J = J)
 
 # change to your own
 setwd("/Users/tylerschmidt/Work/School/STAT5400/Uncertainty-Quantification")
-saveRDS(n100_results, "n100_results")
+saveRDS(n100_results, "n100_results.rds")
 
 sim_plots <- plots(n100_results)
 ### === PRINT PLOTS === ###
