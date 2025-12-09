@@ -745,14 +745,12 @@ plots <- function(results) {
   ### === COMPUTATION TIME PLOTS === ###
   time_linear_plot <- ggplot(time_linear_df, aes(x = model, y = time)) +
     geom_col(fill = "grey50") +
-    geom_text(aes(label = round(time, 2)), vjust = -0.5, size = 4) +
-    labs(title = "Computation Time (Linear DGP)", x = "Model", y = "Time (s)") +
+    labs(x = "n = 500", y = "Time (s)") +
     theme_minimal(base_size = 14)
   
   time_nonlinear_plot <- ggplot(time_nonlinear_df, aes(x = model, y = time)) +
     geom_col(fill = "grey50") +
-    geom_text(aes(label = round(time, 2)), vjust = -0.5, size = 4) +
-    labs(title = "Computation Time (Nonlinear DGP)", x = "Model", y = "Time (s)") +
+    labs(x = "n = 500", y = "Time (s)") +
     theme_minimal(base_size = 14)
   
   ### === COMBINE PLOTS === ###
@@ -776,17 +774,29 @@ plots <- function(results) {
 # ******************************************************************************
 ####################################################################################
 #end of funcitons 
-J = 5
-n100_results <- run_study(n = 100, B = 1000, J = J)
+J = 20
+n500_results <- run_study(n = 500, B = 1000, J = J)
 
 # change to your own
 setwd("/Users/tylerschmidt/Work/School/STAT5400/Uncertainty-Quantification")
-saveRDS(n100_results, "n100_results.rds")
+saveRDS(n500_results, "n500_results.rds")
 
-sim_plots <- plots(n100_results)
+# loading results in 
+n100 <- readRDS("n100_results.rds")
+n250 <- readRDS("n250_results.rds")
+n500 <- readRDS("n500_results.rds")
+#
+
+sim_plots <- plots(n500)
 ### === PRINT PLOTS === ###
 print(sim_plots$combined_plot_bias)
 print(sim_plots$combined_plot_rmse)
 print(sim_plots$combined_plot_interval)
 print(sim_plots$combined_plot_coverage)
 print(sim_plots$time_plots)
+
+n100_time <- sim_plots$time_plots
+n250_time <- sim_plots$time_plots
+n500_time <- sim_plots$time_plots
+
+n100_time / n250_time / n500_time
